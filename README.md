@@ -289,26 +289,5 @@ A portable, offline OSINT bookmark hub in a single HTML file. Import browser boo
 
   <hr>
 
-  <h2>🎯 Final Pitch</h2>
-  <p>
-    If you want a <strong>portable, flexible, offline-ready OSINT toolkit</strong> that goes wherever you go,
-    the OSINT Bookmark Manager is the perfect companion.
-  </p>
-  <p>
-    It gives investigators a clean, fast, structured way to store, search, and transport large OSINT bookmark
-    collections without relying on browser sync, cloud accounts, or installed extensions.
-  </p>
-  <p>
-    This tool is:
-  </p>
-  <ul>
-    <li>Your OSINT toolbox</li>
-    <li>Your workflow accelerator</li>
-    <li>Your portable intel library</li>
-    <li>Your operational companion</li>
-  </ul>
-
-  <p><strong>Clone it, open the HTML file, import your bookmarks, and start investigating.</strong></p>
-
 </body>
 </html>
