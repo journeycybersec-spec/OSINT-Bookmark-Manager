@@ -5,7 +5,6 @@ A portable, offline OSINT bookmark hub in a single HTML file. Import browser boo
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>OSINT Bookmark Manager – Project Overview</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #111827; max-width: 900px; margin: 0 auto; padding: 24px; background-color: #ffffff;">
