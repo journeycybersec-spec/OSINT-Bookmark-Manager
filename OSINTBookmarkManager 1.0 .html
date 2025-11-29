@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Bookmark Manager – Regex Parser Version (Themed + Persistent)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --bg: #000000;
+      --fg: #00e5ff;
+      --fg-soft: #66f7ff;
+      --accent: #00c2d1;
+      --border: #00e5ff;
+      --border-soft: rgba(0,229,255,.4);
+      --muted: #64748b;
+      --danger: #f97373;
+      --panel-bg: rgba(2,6,23,.9);
+      --card-bg: rgba(15,23,42,.9);
+      --hover-bg: rgba(15,23,42,.9);
+      --tree-line: rgba(148,163,184,.5);
+      --info: #7dd3fc;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #020617, #000000 55%);
+      color: var(--fg);
+      padding: 20px;
+      transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .app { max-width: 1100px; margin: 0 auto; }
+    h1 { font-size: 1.9rem; margin: 0 0 0.4rem 0; }
+    .subtitle { font-size: 0.9rem; color: var(--fg-soft); margin-bottom: 1.2rem; }
+
+    .controls {
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-bottom:12px;
+      align-items:center;
+    }
+
+    .btn {
+      background: var(--accent);
+      color:#000;
+      border:none;
+      border-radius:6px;
+      padding:7px 14px;
+      font-size:0.85rem;
+      font-weight:600;
+      cursor:pointer;
+      white-space:nowrap;
+      transition:filter .1s, box-shadow .1s, transform .05s;
+    }
+    .btn:hover {
+      filter:brightness(1.1);
+      box-shadow:0 0 12px rgba(0,229,255,.6);
+      transform:translateY(-1px);
+    }
+    .btn-secondary {
+      background:transparent;
+      color:var(--fg-soft);
+      border:1px solid var(--fg-soft);
+    }
+
+    .file-label { position:relative; overflow:hidden; display:inline-block; }
+    .file-label input[type=file] {
+      position:absolute;
+      inset:0;
+      opacity:0;
+      cursor:pointer;
+    }
+
+    .theme-label {
+      display:flex;
+      align-items:center;
+      gap:6px;
+      font-size:0.8rem;
+      color:var(--fg-soft);
+      margin-left:auto;
+    }
+
+    .theme-select {
+      padding:6px 10px;
+      border-radius:6px;
+      border:1px solid var(--border);
+      background: var(--panel-bg);
+      color: var(--fg);
+      font-size:0.8rem;
+      outline:none;
+    }
+
+    .theme-select:focus {
+      box-shadow:0 0 0 1px var(--accent), 0 0 8px rgba(0,229,255,.6);
+    }
+
+    .search-row {
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+      margin-bottom:14px;
+    }
+
+    .search-input {
+      flex:1;
+      min-width:220px;
+      padding:8px 10px;
+      border-radius:6px;
+      border:1px solid var(--border);
+      background:var(--panel-bg);
+      color:var(--fg);
+      font-size:.85rem;
+      outline:none;
+    }
+    .search-input:focus {
+      box-shadow:0 0 0 1px var(--accent), 0 0 10px rgba(0,229,255,.7);
+    }
+
+    .search-hint { font-size:.78rem; color:var(--muted); }
+    .info { font-size:.8rem; color:var(--info); margin-bottom:10px; }
+
+    .tree-container {
+      border-radius:10px;
+      border:1px solid var(--border-soft);
+      background:var(--panel-bg);
+      padding:10px 12px;
+      max-height:70vh;
+      overflow:auto;
+    }
+
+    ul.tree { list-style:none; padding-left:0; margin:0; font-size:.86rem; }
+    ul.tree ul {
+      list-style:none;
+      padding-left:18px;
+      margin:2px 0 0 0;
+      border-left:1px dashed var(--tree-line);
+    }
+
+    .folder-row {
+      display:flex;
+      align-items:center;
+      padding:2px 4px;
+      cursor:pointer;
+      user-select:none;
+    }
+    .folder-row:hover { background:var(--hover-bg); }
+
+    .toggle {
+      width:16px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      margin-right:4px;
+      font-size:.7rem;
+      color:var(--fg-soft);
+    }
+    .folder-name { font-weight:600; color:var(--fg-soft); }
+
+    .bookmark-row {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      padding:3px 4px;
+      margin:1px 0;
+    }
+
+    .bookmark-link {
+      color:var(--fg);
+      text-decoration:none;
+      word-break:break-all;
+      font-size:.84rem;
+    }
+    .bookmark-link:hover { text-decoration:underline; color:var(--fg-soft); }
+
+    .btn-remove {
+      border:1px solid var(--danger);
+      border-radius:999px;
+      padding:2px 8px;
+      font-size:.7rem;
+      color:var(--danger);
+      background:transparent;
+      cursor:pointer;
+    }
+    .btn-remove:hover { background:rgba(248,113,113,.15); }
+
+    .empty-state {
+      font-size:.9rem;
+      color:var(--muted);
+      margin-top:4px;
+    }
+
+    .results-container { margin-top:10px; }
+
+    .result-card {
+      border:1px solid var(--border-soft);
+      border-radius:8px;
+      padding:6px 8px;
+      margin-bottom:6px;
+      background:var(--card-bg);
+      display:flex;
+      justify-content:space-between;
+      gap:8px;
+      align-items:center;
+      font-size:.82rem;
+    }
+
+    .result-main { max-width:80%; }
+    .badge-path { font-size:.7rem; color:var(--muted); margin-bottom:2px; }
+    .result-url { font-size:.72rem; color:var(--fg-soft); word-break:break-all; }
+
+    @media (max-width:700px){
+      body{padding:14px;}
+      .controls{flex-direction:column; align-items:stretch;}
+      .btn,.file-label{width:100%; text-align:center; justify-content:center;}
+      .search-row{flex-direction:column; align-items:stretch;}
+      .theme-label {
+        margin-left:0;
+        width:100%;
+        justify-content:space-between;
+      }
+      .theme-select { width:100%; }
+    }
+
+    /* ================= THEME VARIANTS ================= */
+
+    /* 1) Dark Cyan (default) */
+    body[data-theme="dark-cyan"] {
+      --bg: #000000;
+      --fg: #00e5ff;
+      --fg-soft: #66f7ff;
+      --accent: #00c2d1;
+      --border: #00e5ff;
+      --border-soft: rgba(0,229,255,.4);
+      --muted: #64748b;
+      --danger: #f97373;
+      --panel-bg: rgba(2,6,23,.9);
+      --card-bg: rgba(15,23,42,.9);
+      --hover-bg: rgba(15,23,42,.9);
+      --tree-line: rgba(148,163,184,.5);
+      --info: #7dd3fc;
+      background: radial-gradient(circle at top, #020617, #000000 55%);
+    }
+
+    /* 2) Neon Purple */
+    body[data-theme="neon-purple"] {
+      --bg:#050014;
+      --fg:#f5e1ff;
+      --fg-soft:#f9a8ff;
+      --accent:#d946ef;
+      --border:#f973ff;
+      --border-soft:rgba(249,115,255,.5);
+      --muted:#a1a1aa;
+      --danger:#fb7185;
+      --panel-bg:rgba(39,0,65,.9);
+      --card-bg:rgba(76,5,112,.95);
+      --hover-bg:rgba(99,7,128,.95);
+      --tree-line:rgba(216,180,254,.6);
+      --info:#e879f9;
+      background: radial-gradient(circle at top, #2a0039, #050014 55%);
+    }
+
+    /* 3) Emerald Green */
+    body[data-theme="emerald"] {
+      --bg:#00100c;
+      --fg:#d1fae5;
+      --fg-soft:#6ee7b7;
+      --accent:#10b981;
+      --border:#34d399;
+      --border-soft:rgba(52,211,153,.45);
+      --muted:#6b7280;
+      --danger:#f87171;
+      --panel-bg:rgba(1,25,20,.9);
+      --card-bg:rgba(3,47,35,.95);
+      --hover-bg:rgba(6,78,59,.95);
+      --tree-line:rgba(16,185,129,.5);
+      --info:#6ee7b7;
+      background: radial-gradient(circle at top, #022c22, #00100c 55%);
+    }
+
+    /* 4) Solarized */
+    body[data-theme="solarized"] {
+      --bg:#002b36;
+      --fg:#fdf6e3;
+      --fg-soft:#eee8d5;
+      --accent:#b58900;
+      --border:#cb4b16;
+      --border-soft:rgba(203,75,22,.45);
+      --muted:#93a1a1;
+      --danger:#dc322f;
+      --panel-bg:rgba(0,43,54,.95);
+      --card-bg:rgba(7,54,66,.95);
+      --hover-bg:rgba(7,77,94,.95);
+      --tree-line:rgba(88,110,117,.6);
+      --info:#b58900;
+      background: radial-gradient(circle at top, #073642, #002b36 55%);
+    }
+
+    /* 5) Light Mode */
+    body[data-theme="light"] {
+      --bg:#f3f4f6;
+      --fg:#111827;
+      --fg-soft:#4b5563;
+      --accent:#2563eb;
+      --border:#0f172a;
+      --border-soft:rgba(15,23,42,.25);
+      --muted:#6b7280;
+      --danger:#b91c1c;
+      --panel-bg:#f9fafb;
+      --card-bg:#ffffff;
+      --hover-bg:#e5e7eb;
+      --tree-line:rgba(148,163,184,.7);
+      --info:#2563eb;
+      background:#e5e7eb;
+    }
+
+    /* 6) Matrix Green */
+    body[data-theme="matrix"] {
+      --bg:#000000;
+      --fg:#bbf7d0;
+      --fg-soft:#4ade80;
+      --accent:#22c55e;
+      --border:#22c55e;
+      --border-soft:rgba(34,197,94,.5);
+      --muted:#6b7280;
+      --danger:#f97373;
+      --panel-bg:rgba(0,10,0,.96);
+      --card-bg:rgba(0,24,0,.96);
+      --hover-bg:rgba(5,46,22,.9);
+      --tree-line:rgba(34,197,94,.5);
+      --info:#4ade80;
+      background: radial-gradient(circle at top, #022c22, #000000 55%);
+    }
+
+    /* 7) Red & Black Hacker */
+    body[data-theme="red"] {
+      --bg:#020000;
+      --fg:#fee2e2;
+      --fg-soft:#fecaca;
+      --accent:#ef4444;
+      --border:#f97373;
+      --border-soft:rgba(248,113,113,.5);
+      --muted:#9ca3af;
+      --danger:#f97373;
+      --panel-bg:rgba(15,4,4,.95);
+      --card-bg:rgba(30,6,6,.95);
+      --hover-bg:rgba(60,7,7,.95);
+      --tree-line:rgba(248,113,113,.5);
+      --info:#fca5a5;
+      background: radial-gradient(circle at top, #450a0a, #020000 55%);
+    }
+
+    /* 8) Midnight Blue */
+    body[data-theme="midnight"] {
+      --bg:#020617;
+      --fg:#e5e7eb;
+      --fg-soft:#bfdbfe;
+      --accent:#3b82f6;
+      --border:#60a5fa;
+      --border-soft:rgba(96,165,250,.5);
+      --muted:#9ca3af;
+      --danger:#f97373;
+      --panel-bg:rgba(15,23,42,.96);
+      --card-bg:rgba(17,24,39,.96);
+      --hover-bg:rgba(30,64,175,.7);
+      --tree-line:rgba(148,163,184,.7);
+      --info:#60a5fa;
+      background: radial-gradient(circle at top, #0f172a, #020617 55%);
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Interactive Bookmark Manager</h1>
+    <p class="subtitle">
+      Standalone HTML using a regex-based parser (no DOM quirks). Imports Chrome/Firefox bookmark HTML,
+      preserves folder structure, supports search, add/remove, JSON export, multiple color themes, and persistent storage.
+    </p>
+
+    <div class="controls">
+      <label class="btn file-label">
+        Import Bookmarks (HTML)
+        <input type="file" id="import-file" accept=".html,.htm" />
+      </label>
+      <button class="btn btn-secondary" id="add-root-bookmark">+ Add Bookmark (Top Level)</button>
+      <button class="btn" id="export-json">Export JSON</button>
+      <button class="btn" id="save-html">Save File (Persistent)</button>
+      <button class="btn btn-secondary" id="clear-saved">Clear Saved</button>
+
+      <label class="theme-label">
+        Theme:
+        <select id="theme-select" class="theme-select">
+          <option value="dark-cyan">Dark Cyan (Default)</option>
+          <option value="neon-purple">Neon Purple</option>
+          <option value="emerald">Emerald Green</option>
+          <option value="solarized">Solarized</option>
+          <option value="light">Light Mode</option>
+          <option value="matrix">Matrix Green</option>
+          <option value="red">Red &amp; Black Hacker</option>
+          <option value="midnight">Midnight Blue</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="search-row">
+      <input id="search-input" class="search-input" type="text"
+        placeholder="Search bookmarks by title, URL, or folder path..." />
+      <span class="search-hint">Type to see results; clear to return to folder tree.</span>
+    </div>
+
+    <p class="info">
+      💡 Export from Chrome: <strong>Bookmark Manager → ⋮ → Export bookmarks</strong> (HTML).
+      Then import that file here. Your working set is stored locally, embedded into this file when you click
+      <strong>Save File (Persistent)</strong>, and will be restored next time.
+    </p>
+
+    <div class="tree-container">
+      <ul id="tree" class="tree"></ul>
+      <p id="empty-message" class="empty-state">No bookmarks loaded yet.</p>
+      <div id="results" class="results-container" style="display:none;"></div>
+    </div>
+  </div>
+
+  <!-- Embedded persistent bookmark data block -->
+  <script id="embedded-bookmark-data" type="application/json">
+  {
+    "tree": []
+  }
+  </script>
+
+  <script>
+    let bookmarkTree = [];
+    let nextId = 1;
+
+    const importInput = document.getElementById("import-file");
+    const treeEl = document.getElementById("tree");
+    const emptyEl = document.getElementById("empty-message");
+    const searchInput = document.getElementById("search-input");
+    const resultsEl = document.getElementById("results");
+    const addRootBookmarkBtn = document.getElementById("add-root-bookmark");
+    const exportJsonBtn = document.getElementById("export-json");
+    const themeSelect = document.getElementById("theme-select");
+    const clearSavedBtn = document.getElementById("clear-saved");
+    const saveHtmlBtn = document.getElementById("save-html");
+    const embeddedDataEl = document.getElementById("embedded-bookmark-data");
+
+    const THEME_KEY = "bookmark_manager_theme";
+    const DEFAULT_THEME = "dark-cyan";
+    const STORAGE_KEY = "bookmark_manager_saved_tree";
+
+    function generateId() { return String(nextId++); }
+
+    // ========= THEME HANDLING =========
+    function applyTheme(theme) {
+      const t = theme || DEFAULT_THEME;
+      document.body.setAttribute("data-theme", t);
+      if (themeSelect && themeSelect.value !== t) {
+        themeSelect.value = t;
+      }
+      try {
+        localStorage.setItem(THEME_KEY, t);
+      } catch (e) {
+        // ignore storage errors
+      }
+    }
+
+    (function initTheme() {
+      let saved = null;
+      try {
+        saved = localStorage.getItem(THEME_KEY);
+      } catch (e) {
+        saved = null;
+      }
+      applyTheme(saved || DEFAULT_THEME);
+    })();
+
+    if (themeSelect) {
+      themeSelect.addEventListener("change", (e) => {
+        applyTheme(e.target.value);
+      });
+    }
+
+    // ========= PERSISTENCE HELPERS =========
+    function reassignIds(nodes) {
+      nodes.forEach(node => {
+        node.id = String(nextId++);
+        if (node.children && Array.isArray(node.children)) {
+          reassignIds(node.children);
+        }
+      });
+    }
+
+    function saveToStorage() {
+      try {
+        const payload = JSON.stringify(bookmarkTree);
+        localStorage.setItem(STORAGE_KEY, payload);
+      } catch (e) {
+        console.error("Failed to save bookmarks:", e);
+      }
+    }
+
+    function loadFromEmbedded() {
+      if (!embeddedDataEl) return null;
+      try {
+        const text = embeddedDataEl.textContent || embeddedDataEl.innerText || "";
+        if (!text.trim()) return null;
+        const parsed = JSON.parse(text);
+        if (!parsed || !Array.isArray(parsed.tree)) return null;
+        const data = parsed.tree;
+        nextId = 1;
+        reassignIds(data);
+        return data;
+      } catch (e) {
+        console.error("Failed to parse embedded bookmark data:", e);
+        return null;
+      }
+    }
+
+    function loadFromStorage() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (!saved) return null;
+        const parsed = JSON.parse(saved);
+        if (!Array.isArray(parsed)) return null;
+        nextId = 1;
+        reassignIds(parsed);
+        return parsed;
+      } catch (e) {
+        console.error("Failed to load bookmarks from storage:", e);
+        return null;
+      }
+    }
+
+    // Combined loader with priority: embedded → localStorage → empty
+    function loadInitialBookmarks() {
+      let data = loadFromEmbedded();
+      if (data && data.length) {
+        bookmarkTree = data;
+        // Sync embedded → localStorage
+        saveToStorage();
+        return;
+      }
+
+      data = loadFromStorage();
+      if (data && data.length) {
+        bookmarkTree = data;
+        return;
+      }
+
+      bookmarkTree = [];
+    }
+
+    if (clearSavedBtn) {
+      clearSavedBtn.addEventListener("click", () => {
+        if (confirm("Clear all saved bookmarks? This will remove them from this browser (localStorage). Embedded data in the file will remain until you save a new version.")) {
+          try {
+            localStorage.removeItem(STORAGE_KEY);
+          } catch (e) {
+            console.error("Failed to clear storage:", e);
+          }
+          bookmarkTree = [];
+          nextId = 1;
+          if (searchInput) searchInput.value = "";
+          render();
+        }
+      });
+    }
+
+    // ========= REGEX-BASED PARSER FOR NETSCAPE BOOKMARK FORMAT =========
+    function parseBookmarks(text) {
+      const root = [];
+      let currentList = root;
+      const stack = [root];
+      let lastFolder = null;
+      let firstDLSeen = false;
+
+      const tokenRe = /<DL[^>]*>|<\/DL>|<DT>\s*<H3[^>]*>(.*?)<\/H3>|<DT>\s*<A[^>]*HREF="([^"]*)"[^>]*>(.*?)<\/A>/gis;
+
+      let match;
+      while ((match = tokenRe.exec(text)) !== null) {
+        const full = match[0];
+        if (/^<DL/i.test(full)) {
+          if (!firstDLSeen) {
+            firstDLSeen = true;
+            continue; // root DL
+          }
+          if (lastFolder) {
+            lastFolder.children = lastFolder.children || [];
+            currentList = lastFolder.children;
+            stack.push(currentList);
+            lastFolder = null;
+          } else {
+            // Nested DL but no folder; treat as deeper level of same list
+            const same = currentList;
+            stack.push(same);
+          }
+        } else if (/^<\/DL/i.test(full)) {
+          if (stack.length > 1) {
+            stack.pop();
+            currentList = stack[stack.length - 1];
+          }
+        } else if (match[1] !== undefined) {
+          // Folder H3
+          const titleRaw = match[1] || "";
+          const title = titleRaw.replace(/<[^>]*>/g, "").trim() || "Untitled folder";
+          const folder = {
+            id: generateId(),
+            type: "folder",
+            title,
+            children: []
+          };
+          currentList.push(folder);
+          lastFolder = folder;
+        } else if (match[2] !== undefined) {
+          // Bookmark A
+          const url = match[2];
+          let inner = match[3] || "";
+          inner = inner.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+          const title = inner || url;
+          const bookmark = {
+            id: generateId(),
+            type: "bookmark",
+            title,
+            url
+          };
+          currentList.push(bookmark);
+          lastFolder = null; // a DL after this won't belong to a folder
+        }
+      }
+      return root;
+    }
+
+    // ========= RENDER TREE =========
+    function clearTree() { treeEl.innerHTML = ""; }
+
+    function updateEmptyState() {
+      emptyEl.style.display = bookmarkTree.length ? "none" : "block";
+    }
+
+    function renderTreeNodes(nodes, parentUl) {
+      nodes.forEach(node => {
+        const li = document.createElement("li");
+        if (node.type === "folder") {
+          const row = document.createElement("div");
+          row.className = "folder-row";
+
+          const toggle = document.createElement("span");
+          toggle.className = "toggle";
+          toggle.textContent = "►"; // collapsed default
+
+          const nameSpan = document.createElement("span");
+          nameSpan.className = "folder-name";
+          nameSpan.textContent = node.title;
+
+          const childrenUl = document.createElement("ul");
+          childrenUl.style.display = "none";
+
+          const toggleFn = (ev) => {
+            ev.stopPropagation();
+            const hidden = childrenUl.style.display === "none";
+            childrenUl.style.display = hidden ? "block" : "none";
+            toggle.textContent = hidden ? "▼" : "►";
+          };
+
+          toggle.addEventListener("click", toggleFn);
+          nameSpan.addEventListener("click", toggleFn);
+
+          row.appendChild(toggle);
+          row.appendChild(nameSpan);
+          li.appendChild(row);
+          li.appendChild(childrenUl);
+
+          if (node.children && node.children.length) {
+            renderTreeNodes(node.children, childrenUl);
+          }
+        } else if (node.type === "bookmark") {
+          const row = document.createElement("div");
+          row.className = "bookmark-row";
+
+          const link = document.createElement("a");
+          link.className = "bookmark-link";
+          link.href = node.url;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.textContent = node.title;
+
+          const removeBtn = document.createElement("button");
+          removeBtn.className = "btn-remove";
+          removeBtn.textContent = "Remove";
+          removeBtn.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            if (confirm("Delete this bookmark?")) {
+              removeNodeById(node.id);
+              saveToStorage();
+              render();
+            }
+          });
+
+          row.appendChild(link);
+          row.appendChild(removeBtn);
+          li.appendChild(row);
+        }
+        parentUl.appendChild(li);
+      });
+    }
+
+    function renderTreeView() {
+      clearTree();
+      updateEmptyState();
+      if (!bookmarkTree.length) return;
+      renderTreeNodes(bookmarkTree, treeEl);
+    }
+
+    // ========= FLATTEN & SEARCH =========
+    function flattenBookmarks(nodes, path = []) {
+      const out = [];
+      nodes.forEach(node => {
+        if (node.type === "bookmark") {
+          out.push({
+            id: node.id,
+            title: node.title,
+            url: node.url,
+            path: path.join(" / ")
+          });
+        } else if (node.type === "folder") {
+          const nextPath = path.concat(node.title);
+          if (node.children && node.children.length) {
+            out.push(...flattenBookmarks(node.children, nextPath));
+          }
+        }
+      });
+      return out;
+    }
+
+    function renderSearchResults(query) {
+      const q = query.trim().toLowerCase();
+      if (!q) {
+        resultsEl.style.display = "none";
+        treeEl.style.display = "block";
+        renderTreeView();
+        return;
+      }
+
+      const flat = flattenBookmarks(bookmarkTree);
+      const matches = flat.filter(bm =>
+        (bm.title && bm.title.toLowerCase().includes(q)) ||
+        (bm.url && bm.url.toLowerCase().includes(q)) ||
+        (bm.path && bm.path.toLowerCase().includes(q))
+      );
+
+      treeEl.style.display = "none";
+      resultsEl.style.display = "block";
+      resultsEl.innerHTML = "";
+
+      if (!matches.length) {
+        resultsEl.innerHTML = "<p class='empty-state'>No bookmarks match that search.</p>";
+        return;
+      }
+
+      matches.forEach(bm => {
+        const card = document.createElement("div");
+        card.className = "result-card";
+
+        const main = document.createElement("div");
+        main.className = "result-main";
+
+        if (bm.path) {
+          const pathEl = document.createElement("div");
+          pathEl.className = "badge-path";
+          pathEl.textContent = bm.path;
+          main.appendChild(pathEl);
+        }
+
+        const titleEl = document.createElement("div");
+        const link = document.createElement("a");
+        link.href = bm.url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.className = "bookmark-link";
+        link.textContent = bm.title || bm.url;
+        titleEl.appendChild(link);
+        main.appendChild(titleEl);
+
+        const urlEl = document.createElement("div");
+        urlEl.className = "result-url";
+        urlEl.textContent = bm.url;
+        main.appendChild(urlEl);
+
+        const removeBtn = document.createElement("button");
+        removeBtn.className = "btn-remove";
+        removeBtn.textContent = "Remove";
+        removeBtn.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          if (confirm("Delete this bookmark?")) {
+            removeNodeById(bm.id);
+            saveToStorage();
+            renderSearchResults(searchInput.value);
+          }
+        });
+
+        card.appendChild(main);
+        card.appendChild(removeBtn);
+        resultsEl.appendChild(card);
+      });
+    }
+
+    // ========= REMOVE NODE =========
+    function removeNodeById(id) {
+      function removeIn(nodes) {
+        return nodes
+          .filter(node => node.id !== id)
+          .map(node => {
+            if (node.type === "folder" && node.children && node.children.length) {
+              return { ...node, children: removeIn(node.children) };
+            }
+            return node;
+          });
+      }
+      bookmarkTree = removeIn(bookmarkTree);
+    }
+
+    // ========= ADD ROOT BOOKMARK =========
+    function addRootBookmark() {
+      const title = prompt("Bookmark title:");
+      if (title === null) return;
+      const url = prompt("Bookmark URL:");
+      if (!url) return;
+      bookmarkTree.push({
+        id: generateId(),
+        type: "bookmark",
+        title: (title || "").trim() || url.trim(),
+        url: url.trim()
+      });
+      saveToStorage();
+      render();
+    }
+
+    // ========= EXPORT JSON =========
+    function exportJSON() {
+      if (!bookmarkTree.length) {
+        alert("No bookmarks to export.");
+        return;
+      }
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        tree: bookmarkTree
+      };
+      const json = JSON.stringify(payload, null, 2);
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "bookmarks_tree.json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // ========= SAVE FULL HTML WITH EMBEDDED DATA =========
+    function buildUpdatedHTML() {
+      try {
+        const docEl = document.documentElement.cloneNode(true);
+
+        // Update embedded JSON inside the cloned document
+        const embedded = docEl.querySelector("#embedded-bookmark-data");
+        if (embedded) {
+          const payload = {
+            tree: bookmarkTree
+          };
+          embedded.textContent = "\n" + JSON.stringify(payload, null, 2) + "\n";
+        }
+
+        const fullHtml = "<!DOCTYPE html>\n" + docEl.outerHTML;
+        return fullHtml;
+      } catch (e) {
+        console.error("Failed to build updated HTML:", e);
+        return null;
+      }
+    }
+
+    function saveHtmlFile() {
+      if (!bookmarkTree.length && !confirm("There are no bookmarks in the tree. Save an empty file anyway?")) {
+        return;
+      }
+
+      // Sync to localStorage first
+      saveToStorage();
+
+      const updated = buildUpdatedHTML();
+      if (!updated) {
+        alert("Failed to build updated HTML.");
+        return;
+      }
+
+      const blob = new Blob([updated], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "OSINTBookmarkManager-persistent.html";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // ========= MAIN RENDER SWITCH =========
+    function render() {
+      const query = searchInput.value.trim();
+      if (query) {
+        renderSearchResults(query);
+      } else {
+        resultsEl.style.display = "none";
+        treeEl.style.display = "block";
+        renderTreeView();
+      }
+    }
+
+    // ========= EVENT WIRING =========
+    importInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const text = ev.target.result;
+          nextId = 1;
+          bookmarkTree = parseBookmarks(text);
+          if (searchInput) searchInput.value = "";
+          saveToStorage();
+          render();
+        } catch (err) {
+          console.error(err);
+          alert("Failed to import bookmarks.");
+        } finally {
+          importInput.value = "";
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    searchInput.addEventListener("input", () => { render(); });
+    addRootBookmarkBtn.addEventListener("click", addRootBookmark);
+    exportJsonBtn.addEventListener("click", exportJSON);
+    if (saveHtmlBtn) {
+      saveHtmlBtn.addEventListener("click", saveHtmlFile);
+    }
+
+    // ========= INITIAL LOAD =========
+    loadInitialBookmarks();
+    render();
+  </script>
+</body>
+</html>
